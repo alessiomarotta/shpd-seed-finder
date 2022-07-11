@@ -13,7 +13,7 @@ index 5deeeab25..69a889175 100644
  	public static void log( String tag, String message ){
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
 new file mode 100644
-index 000000000..c8f86ddb7
+index 000000000..1b2f63997
 --- /dev/null
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
 @@ -0,0 +1,211 @@
@@ -62,9 +62,9 @@ index 000000000..c8f86ddb7
 +			for (Heap h : items) {
 +				Item i = h.peek();
 +
-+				if ((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
-+					(i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
-+					(i instanceof Ring) && i.cursed)
++				if (((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
++					 (i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
++					 (i instanceof Ring)) && i.cursed)
 +					builder.append("- cursed " + i.toString().toLowerCase());
 +
 +				else
@@ -112,7 +112,7 @@ index 000000000..c8f86ddb7
 +		Dungeon.init();
 +
 +		// TODO: check animated statues and mimic drops
-+		for (int i = 0; i < 4; i++) {
++		for (int i = 0; i < floors; i++) {
 +			Level l = Dungeon.newLevel();
 +			List<Heap> heaps = l.heaps.valueList();
 +

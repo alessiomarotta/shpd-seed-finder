@@ -43,9 +43,9 @@ public class SeedFinder {
 			for (Heap h : items) {
 				Item i = h.peek();
 
-				if ((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
-					(i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
-					(i instanceof Ring) && i.cursed)
+				if (((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
+					 (i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
+					 (i instanceof Ring)) && i.cursed)
 					builder.append("- cursed " + i.toString().toLowerCase());
 
 				else
@@ -93,7 +93,7 @@ public class SeedFinder {
 		Dungeon.init();
 
 		// TODO: check animated statues and mimic drops
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < floors; i++) {
 			Level l = Dungeon.newLevel();
 			List<Heap> heaps = l.heaps.valueList();
 
