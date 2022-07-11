@@ -4,7 +4,7 @@ Application to find seeds for Shattered Pixel Dungeon given constraints (e.g. wa
 
 # How to use
 
-The application can be run as follows:
+The application needs to be run from the command line and requires at least 3 arguments:
 
 ```
 java -jar seed-finder.jar floors condition item_list [output_file]
