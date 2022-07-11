@@ -1,14 +1,25 @@
 # Shattered Pixel Dungeon seed finder
 
-Application to find seeds for Shattered Pixel Dungeon given constraints (e.g. wand of disintegration +2 on the first floor and ring of evasion in the first 4 floors).
+Application to find seeds for Shattered Pixel Dungeon given constraints (e.g. wand of disintegration +2 and ring of evasion in the first 4 floors).
 
 # How to use
 
-Edit the relevant piece of code in SeedFinder.java (it's marked by a comment saying "put your constraints here"), then compile and execute the application.
+The application can be run as follows:
+
+```
+java -jar seed-finder.jar floors condition item_list [output_file]
+```
+
+- **floors**: maximum depth to look for the items
+- **condition**: can be either `any` or `all`: the first will consider a seed valid if any of the specified items has been found, the second one requires _all_ of the items to spawn instead
+- **item_list**: file name containing a list of items, one item per line
+- **output_file**: file name to save the item list for each seed, if unspecified it will be set to `out.txt`
+
+The entries in the item list need to be all lowercase and can optionally specify the enchantement and the upgrade level, so both `projecting crossbow +3` and `sword` are valid item names.
 
 The application will run until all the seeds have been tested by default (virtually indefinitely), so stop it using ctrl-C when you have found enough seeds to analyze.
 
-It is recommended to redirect the standard output to a file during the execution, as it can be quite verbose most of the time (dependent on the strictness of the constraints).
+Any valid seeds will be printed during the execution in the 9 letter code and numeric format.
 
 # How to build
 
@@ -31,8 +42,8 @@ cd shattered-pixel-dungeon
 git apply changes.patch
 ```
 
-4. Compile and run the application. If you prefer to build the JAR archive and run it separately use the `desktop:release` target instead.
+4. Compile the application with the following command:
 
 ```
-./gradlew desktop:debug
+./gradlew desktop:release
 ```

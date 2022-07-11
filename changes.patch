@@ -13,15 +13,20 @@ index 5deeeab25..69a889175 100644
  	public static void log( String tag, String message ){
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
 new file mode 100644
-index 000000000..1b2f63997
+index 000000000..bb7e11244
 --- /dev/null
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,274 @@
 +package com.shatteredpixel.shatteredpixeldungeon;
 +
++import java.io.FileNotFoundException;
++import java.io.FileOutputStream;
++import java.io.PrintWriter;
++import java.io.File;
 +import java.util.ArrayList;
 +import java.util.Arrays;
 +import java.util.List;
++import java.util.Scanner;
 +
 +import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroClass;
 +import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Ghost;
@@ -46,14 +51,55 @@ index 000000000..1b2f63997
 +import com.shatteredpixel.shatteredpixeldungeon.items.rings.Ring;
 +import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.Scroll;
 +import com.shatteredpixel.shatteredpixeldungeon.items.wands.Wand;
-+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfDisintegration;
 +import com.shatteredpixel.shatteredpixeldungeon.items.weapon.Weapon;
 +import com.shatteredpixel.shatteredpixeldungeon.items.weapon.melee.MeleeWeapon;
 +import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 +import com.shatteredpixel.shatteredpixeldungeon.utils.DungeonSeed;
 +
 +public class SeedFinder {
++	enum Condition {ANY, ALL};
++
++	public static class Options {
++		public static int floors;
++		public static Condition condition;
++		public static String itemListFile;
++		public static String ouputFile;
++	}
++
 +	List<Class<? extends Item>> blacklist;
++	ArrayList<String> itemList;
++
++	// TODO: make it parse the item list directly from the arguments
++	private void parseArgs(String[] args) {
++		Options.floors = Integer.parseInt(args[0]);
++		Options.condition = args[1].equals("any") ? Condition.ANY : Condition.ALL;
++		Options.itemListFile = args[2];
++
++		if (args.length < 4)
++			Options.ouputFile = "out.txt";
++
++		else
++			Options.ouputFile = args[3];
++	}
++
++	private ArrayList<String> getItemList() {
++		ArrayList<String> itemList = new ArrayList<>();
++
++		try {
++			Scanner scanner = new Scanner(new File(Options.itemListFile));
++
++			while (scanner.hasNextLine()) {
++				itemList.add(scanner.nextLine());
++			}
++
++			scanner.close();
++
++		} catch (FileNotFoundException e) {
++			e.printStackTrace();
++		}
++
++		return itemList;
++	}
 +
 +	private void addTextItems(String caption, ArrayList<Heap> items, StringBuilder builder) {
 +		if (!items.isEmpty()) {
@@ -96,12 +142,14 @@ index 000000000..1b2f63997
 +		}
 +	}
 +
-+    public SeedFinder() {
-+		int floors = 1;
++    public SeedFinder(String[] args) {
++		parseArgs(args);
++		itemList = getItemList();
 +
 +		for (int i = 0; i < DungeonSeed.TOTAL_SEEDS; i++) {
-+			if (testSeed(Integer.toString(i), floors)) {
-+				listSeedItems(Integer.toString(i), 4);
++			if (testSeed(Integer.toString(i), Options.floors)) {
++				System.out.printf("Found valid seed %s (%d)\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
++				logSeedItems(Integer.toString(i), Options.floors);
 +			}
 +		}
 +	}
@@ -110,6 +158,8 @@ index 000000000..1b2f63997
 +		SPDSettings.customSeed(seed);
 +		GamesInProgress.selectedClass = HeroClass.WARRIOR;
 +		Dungeon.init();
++
++		int itemsFound = 0;
 +
 +		// TODO: check animated statues and mimic drops
 +		for (int i = 0; i < floors; i++) {
@@ -120,18 +170,31 @@ index 000000000..1b2f63997
 +				Item item = h.peek();
 +				item.identify();
 +
-+				// put your constraints here
-+				if (item instanceof WandOfDisintegration && item.level() == 2)
-+					return true;
++				for (String c : itemList) {
++					if (item.toString().toLowerCase().contains(c))
++						itemsFound += 1;
++				}
 +			}
 +
 +			Dungeon.depth++;
 +		}
 +
-+		return false;
++		if (Options.condition == Condition.ANY)
++			return itemsFound > 0;
++
++		else
++			return itemsFound == itemList.size();
 +	}
 +
-+	private void listSeedItems(String seed, int floors) {
++	private void logSeedItems(String seed, int floors) {
++		PrintWriter out = null;
++
++		try {
++			out = new PrintWriter(new FileOutputStream(Options.ouputFile, true));
++		} catch (FileNotFoundException e) { // gotta love Java mandatory exceptions
++			e.printStackTrace();
++		}
++
 +		SPDSettings.customSeed(seed);
 +		GamesInProgress.selectedClass = HeroClass.WARRIOR;
 +		Dungeon.init();
@@ -139,10 +202,10 @@ index 000000000..1b2f63997
 +		blacklist = Arrays.asList(Gold.class, Dewdrop.class, IronKey.class, GoldenKey.class, CrystalKey.class, EnergyCrystal.class,
 +								  CorpseDust.class, Embers.class, CeremonialCandle.class, Pickaxe.class);
 +
-+		System.out.printf("Items for seed %s (%d):\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
++		out.printf("Items for seed %s (%d):\n\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
 +
 +		for (int i = 0; i < floors; i++) {
-+			System.out.println("--- Floor " + Dungeon.depth + " ---\n");
++			out.printf("--- floor %d ---\n\n", Dungeon.depth);
 +
 +			Level l = Dungeon.newLevel();
 +			List<Heap> heaps = l.heaps.valueList();
@@ -211,22 +274,22 @@ index 000000000..1b2f63997
 +				else others.add(h);
 +			}
 +
-+			// addTextItems("Scrolls", scrolls, builder);
-+			// addTextItems("Potions", potions, builder);
++			addTextItems("Scrolls", scrolls, builder);
++			addTextItems("Potions", potions, builder);
 +			addTextItems("Equipment", equipment, builder);
 +			addTextItems("Rings", rings, builder);
 +			addTextItems("Artifacts", artifacts, builder);
 +			addTextItems("Wands", wands, builder);
-+			// addTextItems("Other", others, builder);
++			addTextItems("Other", others, builder);
 +
-+			if (builder.length() > 0)
-+				builder.setLength(builder.length()-1);
-+
-+			System.out.println(builder.toString());
++			out.print(builder.toString());
 +
 +			Dungeon.depth++;
 +		}
++
++		out.close();
 +    }
++
 +}
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/ShatteredPixelDungeon.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/ShatteredPixelDungeon.java
 index 147458ebe..edd64ea38 100644
@@ -265,7 +328,7 @@ index 740aa90b0..f3023f6b0 100644
  		// 2 = elemental embers quest
  		// 3 = rotberry quest
 diff --git a/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java b/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java
-index 5985bfab4..3d9200de3 100644
+index 5985bfab4..562b9f674 100644
 --- a/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java
 +++ b/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java
 @@ -32,6 +32,7 @@ import com.badlogic.gdx.files.FileHandle;
@@ -283,6 +346,6 @@ index 5985bfab4..3d9200de3 100644
 +		config.setInitialVisible(false);
  		new Lwjgl3Application(new ShatteredPixelDungeon(new DesktopPlatformSupport()), config);
 +
-+		new SeedFinder();
++		new SeedFinder(args);
  	}
  }

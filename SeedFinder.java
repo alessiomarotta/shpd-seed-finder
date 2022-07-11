@@ -1,8 +1,13 @@
 package com.shatteredpixel.shatteredpixeldungeon;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintWriter;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroClass;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Ghost;
@@ -27,14 +32,55 @@ import com.shatteredpixel.shatteredpixeldungeon.items.quest.Pickaxe;
 import com.shatteredpixel.shatteredpixeldungeon.items.rings.Ring;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.Scroll;
 import com.shatteredpixel.shatteredpixeldungeon.items.wands.Wand;
-import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfDisintegration;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.Weapon;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.melee.MeleeWeapon;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.utils.DungeonSeed;
 
 public class SeedFinder {
+	enum Condition {ANY, ALL};
+
+	public static class Options {
+		public static int floors;
+		public static Condition condition;
+		public static String itemListFile;
+		public static String ouputFile;
+	}
+
 	List<Class<? extends Item>> blacklist;
+	ArrayList<String> itemList;
+
+	// TODO: make it parse the item list directly from the arguments
+	private void parseArgs(String[] args) {
+		Options.floors = Integer.parseInt(args[0]);
+		Options.condition = args[1].equals("any") ? Condition.ANY : Condition.ALL;
+		Options.itemListFile = args[2];
+
+		if (args.length < 4)
+			Options.ouputFile = "out.txt";
+
+		else
+			Options.ouputFile = args[3];
+	}
+
+	private ArrayList<String> getItemList() {
+		ArrayList<String> itemList = new ArrayList<>();
+
+		try {
+			Scanner scanner = new Scanner(new File(Options.itemListFile));
+
+			while (scanner.hasNextLine()) {
+				itemList.add(scanner.nextLine());
+			}
+
+			scanner.close();
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+
+		return itemList;
+	}
 
 	private void addTextItems(String caption, ArrayList<Heap> items, StringBuilder builder) {
 		if (!items.isEmpty()) {
@@ -77,12 +123,14 @@ public class SeedFinder {
 		}
 	}
 
-    public SeedFinder() {
-		int floors = 1;
+    public SeedFinder(String[] args) {
+		parseArgs(args);
+		itemList = getItemList();
 
 		for (int i = 0; i < DungeonSeed.TOTAL_SEEDS; i++) {
-			if (testSeed(Integer.toString(i), floors)) {
-				listSeedItems(Integer.toString(i), 4);
+			if (testSeed(Integer.toString(i), Options.floors)) {
+				System.out.printf("Found valid seed %s (%d)\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
+				logSeedItems(Integer.toString(i), Options.floors);
 			}
 		}
 	}
@@ -91,6 +139,8 @@ public class SeedFinder {
 		SPDSettings.customSeed(seed);
 		GamesInProgress.selectedClass = HeroClass.WARRIOR;
 		Dungeon.init();
+
+		int itemsFound = 0;
 
 		// TODO: check animated statues and mimic drops
 		for (int i = 0; i < floors; i++) {
@@ -101,18 +151,31 @@ public class SeedFinder {
 				Item item = h.peek();
 				item.identify();
 
-				// put your constraints here
-				if (item instanceof WandOfDisintegration && item.level() == 2)
-					return true;
+				for (String c : itemList) {
+					if (item.toString().toLowerCase().contains(c))
+						itemsFound += 1;
+				}
 			}
 
 			Dungeon.depth++;
 		}
 
-		return false;
+		if (Options.condition == Condition.ANY)
+			return itemsFound > 0;
+
+		else
+			return itemsFound == itemList.size();
 	}
 
-	private void listSeedItems(String seed, int floors) {
+	private void logSeedItems(String seed, int floors) {
+		PrintWriter out = null;
+
+		try {
+			out = new PrintWriter(new FileOutputStream(Options.ouputFile, true));
+		} catch (FileNotFoundException e) { // gotta love Java mandatory exceptions
+			e.printStackTrace();
+		}
+
 		SPDSettings.customSeed(seed);
 		GamesInProgress.selectedClass = HeroClass.WARRIOR;
 		Dungeon.init();
@@ -120,10 +183,10 @@ public class SeedFinder {
 		blacklist = Arrays.asList(Gold.class, Dewdrop.class, IronKey.class, GoldenKey.class, CrystalKey.class, EnergyCrystal.class,
 								  CorpseDust.class, Embers.class, CeremonialCandle.class, Pickaxe.class);
 
-		System.out.printf("Items for seed %s (%d):\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
+		out.printf("Items for seed %s (%d):\n\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
 
 		for (int i = 0; i < floors; i++) {
-			System.out.println("--- Floor " + Dungeon.depth + " ---\n");
+			out.printf("--- floor %d ---\n\n", Dungeon.depth);
 
 			Level l = Dungeon.newLevel();
 			List<Heap> heaps = l.heaps.valueList();
@@ -192,20 +255,20 @@ public class SeedFinder {
 				else others.add(h);
 			}
 
-			// addTextItems("Scrolls", scrolls, builder);
-			// addTextItems("Potions", potions, builder);
+			addTextItems("Scrolls", scrolls, builder);
+			addTextItems("Potions", potions, builder);
 			addTextItems("Equipment", equipment, builder);
 			addTextItems("Rings", rings, builder);
 			addTextItems("Artifacts", artifacts, builder);
 			addTextItems("Wands", wands, builder);
-			// addTextItems("Other", others, builder);
+			addTextItems("Other", others, builder);
 
-			if (builder.length() > 0)
-				builder.setLength(builder.length()-1);
-
-			System.out.println(builder.toString());
+			out.print(builder.toString());
 
 			Dungeon.depth++;
 		}
+
+		out.close();
     }
+
 }
