@@ -13,10 +13,10 @@ index 5deeeab25..69a889175 100644
  	public static void log( String tag, String message ){
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
 new file mode 100644
-index 000000000..bb7e11244
+index 000000000..8ac7da879
 --- /dev/null
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
-@@ -0,0 +1,274 @@
+@@ -0,0 +1,290 @@
 +package com.shatteredpixel.shatteredpixeldungeon;
 +
 +import java.io.FileNotFoundException;
@@ -61,7 +61,7 @@ index 000000000..bb7e11244
 +
 +	public static class Options {
 +		public static int floors;
-+		public static Condition condition;
++		public static Condition condition; 
 +		public static String itemListFile;
 +		public static String ouputFile;
 +	}
@@ -110,7 +110,7 @@ index 000000000..bb7e11244
 +
 +				if (((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
 +					 (i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
-+					 (i instanceof Ring)) && i.cursed)
++					 (i instanceof Ring) || (i instanceof Wand)) && i.cursed)
 +					builder.append("- cursed " + i.toString().toLowerCase());
 +
 +				else
@@ -159,7 +159,7 @@ index 000000000..bb7e11244
 +		GamesInProgress.selectedClass = HeroClass.WARRIOR;
 +		Dungeon.init();
 +
-+		int itemsFound = 0;
++		boolean[] itemsFound = new boolean[itemList.size()];
 +
 +		// TODO: check animated statues and mimic drops
 +		for (int i = 0; i < floors; i++) {
@@ -170,20 +170,36 @@ index 000000000..bb7e11244
 +				Item item = h.peek();
 +				item.identify();
 +
-+				for (String c : itemList) {
-+					if (item.toString().toLowerCase().contains(c))
-+						itemsFound += 1;
++				for (int j = 0; j < itemList.size(); j++) {
++					if (item.toString().toLowerCase().contains(itemList.get(j))) {
++						if (itemsFound[j] == false) {
++							itemsFound[j] = true;
++							break;
++						}
++					}
 +				}
 +			}
 +
 +			Dungeon.depth++;
 +		}
 +
-+		if (Options.condition == Condition.ANY)
-+			return itemsFound > 0;
++		if (Options.condition == Condition.ANY) {
++			for (int i = 0; i < itemList.size(); i++) {
++				if (itemsFound[i] == true)
++					return true;
++			}
 +
-+		else
-+			return itemsFound == itemList.size();
++			return false;
++		}
++
++		else {
++			for (int i = 0; i < itemList.size(); i++) {
++				if (itemsFound[i] == false)
++					return false;
++			}
++
++			return true;
++		}
 +	}
 +
 +	private void logSeedItems(String seed, int floors) {

@@ -42,7 +42,7 @@ public class SeedFinder {
 
 	public static class Options {
 		public static int floors;
-		public static Condition condition;
+		public static Condition condition; 
 		public static String itemListFile;
 		public static String ouputFile;
 	}
@@ -91,7 +91,7 @@ public class SeedFinder {
 
 				if (((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
 					 (i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
-					 (i instanceof Ring)) && i.cursed)
+					 (i instanceof Ring) || (i instanceof Wand)) && i.cursed)
 					builder.append("- cursed " + i.toString().toLowerCase());
 
 				else
@@ -140,7 +140,7 @@ public class SeedFinder {
 		GamesInProgress.selectedClass = HeroClass.WARRIOR;
 		Dungeon.init();
 
-		int itemsFound = 0;
+		boolean[] itemsFound = new boolean[itemList.size()];
 
 		// TODO: check animated statues and mimic drops
 		for (int i = 0; i < floors; i++) {
@@ -151,20 +151,36 @@ public class SeedFinder {
 				Item item = h.peek();
 				item.identify();
 
-				for (String c : itemList) {
-					if (item.toString().toLowerCase().contains(c))
-						itemsFound += 1;
+				for (int j = 0; j < itemList.size(); j++) {
+					if (item.toString().toLowerCase().contains(itemList.get(j))) {
+						if (itemsFound[j] == false) {
+							itemsFound[j] = true;
+							break;
+						}
+					}
 				}
 			}
 
 			Dungeon.depth++;
 		}
 
-		if (Options.condition == Condition.ANY)
-			return itemsFound > 0;
+		if (Options.condition == Condition.ANY) {
+			for (int i = 0; i < itemList.size(); i++) {
+				if (itemsFound[i] == true)
+					return true;
+			}
 
-		else
-			return itemsFound == itemList.size();
+			return false;
+		}
+
+		else {
+			for (int i = 0; i < itemList.size(); i++) {
+				if (itemsFound[i] == false)
+					return false;
+			}
+
+			return true;
+		}
 	}
 
 	private void logSeedItems(String seed, int floors) {
