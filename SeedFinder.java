@@ -2,14 +2,24 @@ package com.shatteredpixel.shatteredpixeldungeon;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.Writer;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
 
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroClass;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.ArmoredStatue;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.CrystalMimic;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.GoldenMimic;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mimic;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Statue;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Ghost;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Imp;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Wandmaker;
@@ -47,6 +57,16 @@ public class SeedFinder {
 		public static String ouputFile;
 	}
 
+	public class HeapItem {
+		public Item item;
+		public Heap heap;
+
+		public HeapItem(Item item, Heap heap) {
+			this.item = item;
+			this.heap = heap;
+		}
+	}
+
 	List<Class<? extends Item>> blacklist;
 	ArrayList<String> itemList;
 
@@ -82,16 +102,17 @@ public class SeedFinder {
 		return itemList;
 	}
 
-	private void addTextItems(String caption, ArrayList<Heap> items, StringBuilder builder) {
+	private void addTextItems(String caption, ArrayList<HeapItem> items, StringBuilder builder) {
 		if (!items.isEmpty()) {
 			builder.append(caption + ":\n");
 
-			for (Heap h : items) {
-				Item i = h.peek();
+			for (HeapItem item : items) {
+				Item i = item.item;
+				Heap h = item.heap;
 
 				if (((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
-					 (i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
-					 (i instanceof Ring) || (i instanceof Wand)) && i.cursed)
+					(i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
+					(i instanceof Ring) || (i instanceof Wand)) && i.cursed)
 					builder.append("- cursed " + i.toString().toLowerCase());
 
 				else
@@ -127,12 +148,57 @@ public class SeedFinder {
 		parseArgs(args);
 		itemList = getItemList();
 
+		try {
+			Writer outputFile = new FileWriter(Options.ouputFile);
+			outputFile.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 		for (int i = 0; i < DungeonSeed.TOTAL_SEEDS; i++) {
 			if (testSeed(Integer.toString(i), Options.floors)) {
 				System.out.printf("Found valid seed %s (%d)\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
 				logSeedItems(Integer.toString(i), Options.floors);
 			}
 		}
+	}
+
+	private ArrayList<Heap> getMobDrops(Level l) {
+		ArrayList<Heap> heaps = new ArrayList<>();
+
+		for (Mob m : l.mobs) {
+			if (m instanceof Statue) {
+				Heap h = new Heap();
+				h.items = new LinkedList<>();
+				h.items.add(((Statue) m).weapon.identify());
+				h.type = Type.STATUE;
+				heaps.add(h);
+			}
+
+			else if (m instanceof ArmoredStatue) {
+				Heap h = new Heap();
+				h.items = new LinkedList<>();
+				h.items.add(((ArmoredStatue) m).armor.identify());
+				h.items.add(((ArmoredStatue) m).weapon.identify());
+				h.type = Type.STATUE;
+				heaps.add(h);
+			}
+
+			else if (m instanceof Mimic) {
+				Heap h = new Heap();
+				h.items = new LinkedList<>();
+
+				for (Item item : ((Mimic) m).items)
+					h.items.add(item.identify());
+
+				if (m instanceof GoldenMimic) h.type = Type.GOLDEN_MIMIC;
+				else if (m instanceof CrystalMimic) h.type = Type.CRYSTAL_MIMIC;
+				else h.type = Type.MIMIC;
+				heaps.add(h);
+			}
+		}
+
+		return heaps;
 	}
 
 	private boolean testSeed(String seed, int floors) {
@@ -142,20 +208,22 @@ public class SeedFinder {
 
 		boolean[] itemsFound = new boolean[itemList.size()];
 
-		// TODO: check animated statues and mimic drops
 		for (int i = 0; i < floors; i++) {
 			Level l = Dungeon.newLevel();
-			List<Heap> heaps = l.heaps.valueList();
+
+			ArrayList<Heap> heaps = new ArrayList<>(l.heaps.valueList());
+			heaps.addAll(getMobDrops(l));
 
 			for (Heap h : heaps) {
-				Item item = h.peek();
-				item.identify();
+				for (Item item : h.items) {
+					item.identify();
 
-				for (int j = 0; j < itemList.size(); j++) {
-					if (item.toString().toLowerCase().contains(itemList.get(j))) {
-						if (itemsFound[j] == false) {
-							itemsFound[j] = true;
-							break;
+					for (int j = 0; j < itemList.size(); j++) {
+						if (item.toString().toLowerCase().contains(itemList.get(j))) {
+							if (itemsFound[j] == false) {
+								itemsFound[j] = true;
+								break;
+							}
 						}
 					}
 				}
@@ -205,21 +273,21 @@ public class SeedFinder {
 			out.printf("--- floor %d ---\n\n", Dungeon.depth);
 
 			Level l = Dungeon.newLevel();
-			List<Heap> heaps = l.heaps.valueList();
+			ArrayList<Heap> heaps = new ArrayList<>(l.heaps.valueList());
 			StringBuilder builder = new StringBuilder();
-			ArrayList<Heap> scrolls = new ArrayList<>();
-			ArrayList<Heap> potions = new ArrayList<>();
-			ArrayList<Heap> equipment = new ArrayList<>();
-			ArrayList<Heap> rings = new ArrayList<>();
-			ArrayList<Heap> artifacts = new ArrayList<>();
-			ArrayList<Heap> wands = new ArrayList<>();
-			ArrayList<Heap> others = new ArrayList<>();
+			ArrayList<HeapItem> scrolls = new ArrayList<>();
+			ArrayList<HeapItem> potions = new ArrayList<>();
+			ArrayList<HeapItem> equipment = new ArrayList<>();
+			ArrayList<HeapItem> rings = new ArrayList<>();
+			ArrayList<HeapItem> artifacts = new ArrayList<>();
+			ArrayList<HeapItem> wands = new ArrayList<>();
+			ArrayList<HeapItem> others = new ArrayList<>();
 
 			// list quest rewards
 			if (Ghost.Quest.armor != null) {
 				ArrayList<Item> rewards = new ArrayList<>();
-				rewards.add(Ghost.Quest.armor);
-				rewards.add(Ghost.Quest.weapon);
+				rewards.add(Ghost.Quest.armor.identify());
+				rewards.add(Ghost.Quest.weapon.identify());
 				Ghost.Quest.complete();
 
 				addTextQuest("Ghost quest rewards", rewards, builder);
@@ -227,8 +295,8 @@ public class SeedFinder {
 
 			if (Wandmaker.Quest.wand1 != null) {
 				ArrayList<Item> rewards = new ArrayList<>();
-				rewards.add(Wandmaker.Quest.wand1);
-				rewards.add(Wandmaker.Quest.wand2);
+				rewards.add(Wandmaker.Quest.wand1.identify());
+				rewards.add(Wandmaker.Quest.wand2.identify());
 				Wandmaker.Quest.complete();
 
 				builder.append("Wandmaker quest item: ");
@@ -255,20 +323,23 @@ public class SeedFinder {
 				addTextQuest("Imp quest reward", rewards, builder);
 			}
 
+			heaps.addAll(getMobDrops(l));
+
 			// list items
 			for (Heap h : heaps) {
-				Item item = h.peek();
-				item.identify();
+				for (Item item : h.items) {
+					item.identify();
 
-				if (h.type == Heap.Type.FOR_SALE) continue;
-				else if (blacklist.contains(item.getClass())) continue;
-				else if (item instanceof Scroll) scrolls.add(h);
-				else if (item instanceof Potion) potions.add(h);
-				else if (item instanceof MeleeWeapon || item instanceof Armor) equipment.add(h);
-				else if (item instanceof Ring) rings.add(h);
-				else if (item instanceof Artifact) artifacts.add( h);
-				else if (item instanceof Wand) wands.add(h);
-				else others.add(h);
+					if (h.type == Type.FOR_SALE) continue;
+					else if (blacklist.contains(item.getClass())) continue;
+					else if (item instanceof Scroll) scrolls.add(new HeapItem(item, h));
+					else if (item instanceof Potion) potions.add(new HeapItem(item, h));
+					else if (item instanceof MeleeWeapon || item instanceof Armor) equipment.add(new HeapItem(item, h));
+					else if (item instanceof Ring) rings.add(new HeapItem(item, h));
+					else if (item instanceof Artifact) artifacts.add(new HeapItem(item, h));
+					else if (item instanceof Wand) wands.add(new HeapItem(item, h));
+					else others.add(new HeapItem(item, h));
+				}
 			}
 
 			addTextItems("Scrolls", scrolls, builder);
