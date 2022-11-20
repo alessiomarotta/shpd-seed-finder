@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.io.File;
@@ -52,9 +53,10 @@ public class SeedFinder {
 
 	public static class Options {
 		public static int floors;
-		public static Condition condition; 
+		public static Condition condition;
 		public static String itemListFile;
 		public static String ouputFile;
+		public static long seed;
 	}
 
 	public class HeapItem {
@@ -72,6 +74,14 @@ public class SeedFinder {
 
 	// TODO: make it parse the item list directly from the arguments
 	private void parseArgs(String[] args) {
+		if (args.length == 2) {
+			Options.ouputFile = "stdout";
+			Options.floors = Integer.parseInt(args[0]);
+			Options.seed = DungeonSeed.convertFromText(args[1]);
+
+			return;			
+		}
+
 		Options.floors = Integer.parseInt(args[0]);
 		Options.condition = args[1].equals("any") ? Condition.ANY : Condition.ALL;
 		Options.itemListFile = args[2];
@@ -113,13 +123,13 @@ public class SeedFinder {
 				if (((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
 					(i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
 					(i instanceof Ring) || (i instanceof Wand)) && i.cursed)
-					builder.append("- cursed " + i.toString().toLowerCase());
+					builder.append("- cursed " + i.title().toLowerCase());
 
 				else
-					builder.append("- " + i.toString().toLowerCase());
+					builder.append("- " + i.title().toLowerCase());
 
 				if (h.type != Type.HEAP)
-					builder.append(" (" + h.toString().toLowerCase() + ")");
+					builder.append(" (" + h.title().toLowerCase() + ")");
 
 				builder.append("\n");
 			}
@@ -134,10 +144,10 @@ public class SeedFinder {
 
 			for (Item i : items) {
 				if (i.cursed)
-					builder.append("- cursed " + i.toString().toLowerCase() + "\n");
+					builder.append("- cursed " + i.title().toLowerCase() + "\n");
 
 				else
-					builder.append("- " + i.toString().toLowerCase() + "\n");
+					builder.append("- " + i.title().toLowerCase() + "\n");
 			}
 
 			builder.append("\n");
@@ -146,6 +156,13 @@ public class SeedFinder {
 
     public SeedFinder(String[] args) {
 		parseArgs(args);
+
+		if (args.length == 2) {
+			logSeedItems(Long.toString(Options.seed), Options.floors);
+
+			return;
+		}
+
 		itemList = getItemList();
 
 		try {
@@ -219,7 +236,7 @@ public class SeedFinder {
 					item.identify();
 
 					for (int j = 0; j < itemList.size(); j++) {
-						if (item.toString().toLowerCase().contains(itemList.get(j))) {
+						if (item.title().toLowerCase().contains(itemList.get(j))) {
 							if (itemsFound[j] == false) {
 								itemsFound[j] = true;
 								break;
@@ -253,9 +270,13 @@ public class SeedFinder {
 
 	private void logSeedItems(String seed, int floors) {
 		PrintWriter out = null;
+		OutputStream out_fd = System.out;
 
 		try {
-			out = new PrintWriter(new FileOutputStream(Options.ouputFile, true));
+			if (Options.ouputFile != "stdout")
+				out_fd = new FileOutputStream(Options.ouputFile, true);
+
+			out = new PrintWriter(out_fd);
 		} catch (FileNotFoundException e) { // gotta love Java mandatory exceptions
 			e.printStackTrace();
 		}

@@ -1,13 +1,14 @@
 ---
  .../java/com/watabou/utils/DeviceCompat.java  |   2 +-
- .../shatteredpixeldungeon/SeedFinder.java     | 361 ++++++++++++++++++
+ .../shatteredpixeldungeon/SeedFinder.java     | 382 ++++++++++++++++++
  .../ShatteredPixelDungeon.java                |  11 +-
  .../actors/mobs/ArmoredStatue.java            |   2 +-
  .../actors/mobs/Statue.java                   |   2 +-
  .../actors/mobs/npcs/Wandmaker.java           |   2 +-
  .../shatteredpixeldungeon/items/Heap.java     |  14 +-
+ .../messages/Languages.java                   |   4 -
  .../desktop/DesktopLauncher.java              |   4 +
- 8 files changed, 383 insertions(+), 15 deletions(-)
+ 9 files changed, 404 insertions(+), 19 deletions(-)
  create mode 100644 core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
 
 diff --git a/SPD-classes/src/main/java/com/watabou/utils/DeviceCompat.java b/SPD-classes/src/main/java/com/watabou/utils/DeviceCompat.java
@@ -25,16 +26,17 @@ index 5deeeab25..69a889175 100644
  	public static void log( String tag, String message ){
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
 new file mode 100644
-index 000000000..0a1a732f1
+index 000000000..a15fe8f47
 --- /dev/null
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/SeedFinder.java
-@@ -0,0 +1,361 @@
+@@ -0,0 +1,382 @@
 +package com.shatteredpixel.shatteredpixeldungeon;
 +
 +import java.io.FileNotFoundException;
 +import java.io.FileOutputStream;
 +import java.io.FileWriter;
 +import java.io.IOException;
++import java.io.OutputStream;
 +import java.io.PrintWriter;
 +import java.io.Writer;
 +import java.io.File;
@@ -86,6 +88,7 @@ index 000000000..0a1a732f1
 +		public static Condition condition;
 +		public static String itemListFile;
 +		public static String ouputFile;
++		public static long seed;
 +	}
 +
 +	public class HeapItem {
@@ -103,6 +106,14 @@ index 000000000..0a1a732f1
 +
 +	// TODO: make it parse the item list directly from the arguments
 +	private void parseArgs(String[] args) {
++		if (args.length == 2) {
++			Options.ouputFile = "stdout";
++			Options.floors = Integer.parseInt(args[0]);
++			Options.seed = DungeonSeed.convertFromText(args[1]);
++
++			return;			
++		}
++
 +		Options.floors = Integer.parseInt(args[0]);
 +		Options.condition = args[1].equals("any") ? Condition.ANY : Condition.ALL;
 +		Options.itemListFile = args[2];
@@ -144,13 +155,13 @@ index 000000000..0a1a732f1
 +				if (((i instanceof Armor && ((Armor) i).hasGoodGlyph()) ||
 +					(i instanceof Weapon && ((Weapon) i).hasGoodEnchant()) ||
 +					(i instanceof Ring) || (i instanceof Wand)) && i.cursed)
-+					builder.append("- cursed " + i.toString().toLowerCase());
++					builder.append("- cursed " + i.title().toLowerCase());
 +
 +				else
-+					builder.append("- " + i.toString().toLowerCase());
++					builder.append("- " + i.title().toLowerCase());
 +
 +				if (h.type != Type.HEAP)
-+					builder.append(" (" + h.toString().toLowerCase() + ")");
++					builder.append(" (" + h.title().toLowerCase() + ")");
 +
 +				builder.append("\n");
 +			}
@@ -165,10 +176,10 @@ index 000000000..0a1a732f1
 +
 +			for (Item i : items) {
 +				if (i.cursed)
-+					builder.append("- cursed " + i.toString().toLowerCase() + "\n");
++					builder.append("- cursed " + i.title().toLowerCase() + "\n");
 +
 +				else
-+					builder.append("- " + i.toString().toLowerCase() + "\n");
++					builder.append("- " + i.title().toLowerCase() + "\n");
 +			}
 +
 +			builder.append("\n");
@@ -177,6 +188,13 @@ index 000000000..0a1a732f1
 +
 +    public SeedFinder(String[] args) {
 +		parseArgs(args);
++
++		if (args.length == 2) {
++			logSeedItems(Long.toString(Options.seed), Options.floors);
++
++			return;
++		}
++
 +		itemList = getItemList();
 +
 +		try {
@@ -250,7 +268,7 @@ index 000000000..0a1a732f1
 +					item.identify();
 +
 +					for (int j = 0; j < itemList.size(); j++) {
-+						if (item.toString().toLowerCase().contains(itemList.get(j))) {
++						if (item.title().toLowerCase().contains(itemList.get(j))) {
 +							if (itemsFound[j] == false) {
 +								itemsFound[j] = true;
 +								break;
@@ -284,9 +302,13 @@ index 000000000..0a1a732f1
 +
 +	private void logSeedItems(String seed, int floors) {
 +		PrintWriter out = null;
++		OutputStream out_fd = System.out;
 +
 +		try {
-+			out = new PrintWriter(new FileOutputStream(Options.ouputFile, true));
++			if (Options.ouputFile != "stdout")
++				out_fd = new FileOutputStream(Options.ouputFile, true);
++
++			out = new PrintWriter(out_fd);
 +		} catch (FileNotFoundException e) { // gotta love Java mandatory exceptions
 +			e.printStackTrace();
 +		}
@@ -391,10 +413,10 @@ index 000000000..0a1a732f1
 +
 +}
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/ShatteredPixelDungeon.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/ShatteredPixelDungeon.java
-index 147458ebe..edd64ea38 100644
+index 3568af8b4..ac3a56a3a 100644
 --- a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/ShatteredPixelDungeon.java
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/ShatteredPixelDungeon.java
-@@ -106,17 +106,8 @@ public class ShatteredPixelDungeon extends Game {
+@@ -97,17 +97,8 @@ public class ShatteredPixelDungeon extends Game {
  	@Override
  	public void create() {
  		super.create();
@@ -414,7 +436,7 @@ index 147458ebe..edd64ea38 100644
  
  	@Override
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/ArmoredStatue.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/ArmoredStatue.java
-index 39fae814a..f2c500ec9 100644
+index 8c2683a8a..96e7c1b37 100644
 --- a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/ArmoredStatue.java
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/ArmoredStatue.java
 @@ -41,7 +41,7 @@ public class ArmoredStatue extends Statue {
@@ -427,7 +449,7 @@ index 39fae814a..f2c500ec9 100644
  	public ArmoredStatue(){
  		super();
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/Statue.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/Statue.java
-index 88ab0e7c9..e64ab8ce2 100644
+index db91b0654..8992eaaae 100644
 --- a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/Statue.java
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/Statue.java
 @@ -47,7 +47,7 @@ public class Statue extends Mob {
@@ -439,7 +461,6 @@ index 88ab0e7c9..e64ab8ce2 100644
  
  	public boolean levelGenStatue = true;
  	
- 	public Statue() {
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/npcs/Wandmaker.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/npcs/Wandmaker.java
 index 740aa90b0..f3023f6b0 100644
 --- a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/npcs/Wandmaker.java
@@ -454,7 +475,7 @@ index 740aa90b0..f3023f6b0 100644
  		// 2 = elemental embers quest
  		// 3 = rotberry quest
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/items/Heap.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/items/Heap.java
-index 551f310ad..d54b803de 100644
+index 5a3730dba..d184f3fdc 100644
 --- a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/items/Heap.java
 +++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/items/Heap.java
 @@ -65,7 +65,11 @@ public class Heap implements Bundlable {
@@ -470,7 +491,7 @@ index 551f310ad..d54b803de 100644
  	}
  	public Type type = Type.HEAP;
  	
-@@ -370,6 +374,14 @@ public class Heap implements Bundlable {
+@@ -369,6 +373,14 @@ public class Heap implements Bundlable {
  				return Messages.get(this, "skeleton");
  			case REMAINS:
  				return Messages.get(this, "remains");
@@ -485,8 +506,23 @@ index 551f310ad..d54b803de 100644
  			default:
  				return peek().title();
  		}
+diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/messages/Languages.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/messages/Languages.java
+index 5f3c81211..0a4eeb7fe 100644
+--- a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/messages/Languages.java
++++ b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/messages/Languages.java
+@@ -96,10 +96,6 @@ public enum Languages {
+ 	}
+ 
+ 	public static Languages matchCode(String code){
+-		for (Languages lang : Languages.values()){
+-			if (lang.code().equals(code))
+-				return lang;
+-		}
+ 		return ENGLISH;
+ 	}
+ 
 diff --git a/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java b/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java
-index 5985bfab4..562b9f674 100644
+index d4d20997a..c95b7ca82 100644
 --- a/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java
 +++ b/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java
 @@ -32,6 +32,7 @@ import com.badlogic.gdx.files.FileHandle;
@@ -497,7 +533,7 @@ index 5985bfab4..562b9f674 100644
  import com.shatteredpixel.shatteredpixeldungeon.ShatteredPixelDungeon;
  import com.shatteredpixel.shatteredpixeldungeon.services.news.News;
  import com.shatteredpixel.shatteredpixeldungeon.services.news.NewsImpl;
-@@ -184,6 +185,9 @@ public class DesktopLauncher {
+@@ -196,6 +197,9 @@ public class DesktopLauncher {
  		config.setWindowIcon("icons/icon_16.png", "icons/icon_32.png", "icons/icon_48.png",
  				"icons/icon_64.png", "icons/icon_128.png", "icons/icon_256.png");
  
@@ -507,6 +543,3 @@ index 5985bfab4..562b9f674 100644
 +		new SeedFinder(args);
  	}
  }
--- 
-2.37.1
-

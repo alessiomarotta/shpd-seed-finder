@@ -1,10 +1,24 @@
 # Shattered Pixel Dungeon seed finder
 
 Application to find seeds for Shattered Pixel Dungeon given constraints (e.g. wand of disintegration +2 and ring of evasion in the first 4 floors).
+It can also display items found on a specific seed.
 
 # How to use
 
-The application needs to be run from the command line and requires at least 3 arguments:
+## Seed display mode
+
+If no more than two arguments are provided, the items found in a given seed will be printed on the screen:
+
+```
+java -jar seed-finder.jar floors seed
+```
+
+- **floors**: maximum depth to display
+- **seed**: dungeon seed to analyze
+
+## Finder mode
+
+If al least 3 arguments are provided, the application will try to find a specific seed:
 
 ```
 java -jar seed-finder.jar floors condition item_list [output_file]
@@ -15,9 +29,9 @@ java -jar seed-finder.jar floors condition item_list [output_file]
 - **item_list**: file name containing a list of items, one item per line
 - **output_file**: file name to save the item list for each seed, if unspecified it will be set to `out.txt`
 
-The entries in the item list need to be all lowercase and can optionally specify the enchantement and the upgrade level, so both `projecting crossbow +3` and `sword` are valid item names.
+The entries in the item list need to be in english, all lowercase and can optionally specify the enchantement and the upgrade level, so both `projecting crossbow +3` and `sword` are valid item names.
 
-The application will run until all the seeds have been tested by default (virtually indefinitely), so stop it using ctrl-C when you have found enough seeds to analyze.
+The application will run until all the seeds have been tested by default (virtually indefinitely), so stop it using ctrl-C when you have found enough seeds for your needs.
 
 Any valid seeds will be printed during the execution in the 9 letter code and numeric format.
 
