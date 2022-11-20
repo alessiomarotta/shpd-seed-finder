@@ -83,7 +83,7 @@ index 000000000..0a1a732f1
 +
 +	public static class Options {
 +		public static int floors;
-+		public static Condition condition; 
++		public static Condition condition;
 +		public static String itemListFile;
 +		public static String ouputFile;
 +	}
@@ -436,9 +436,10 @@ index 88ab0e7c9..e64ab8ce2 100644
  	
 -	protected Weapon weapon;
 +	public Weapon weapon;
+ 
+ 	public boolean levelGenStatue = true;
  	
  	public Statue() {
- 		super();
 diff --git a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/npcs/Wandmaker.java b/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/npcs/Wandmaker.java
 index 740aa90b0..f3023f6b0 100644
 --- a/core/src/main/java/com/shatteredpixel/shatteredpixeldungeon/actors/mobs/npcs/Wandmaker.java
@@ -482,7 +483,7 @@ index 551f310ad..d54b803de 100644
 +			case STATUE:
 +				return "statue";
  			default:
- 				return peek().toString();
+ 				return peek().title();
  		}
 diff --git a/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java b/desktop/src/main/java/com/shatteredpixel/shatteredpixeldungeon/desktop/DesktopLauncher.java
 index 5985bfab4..562b9f674 100644
