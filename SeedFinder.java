@@ -13,6 +13,8 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.HashSet;
+import java.util.Random;
 
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroClass;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.ArmoredStatue;
@@ -171,13 +173,22 @@ public class SeedFinder {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		Random rand = new Random();
+		HashSet<Long> chosenSeeds = new HashSet<>();
 
-		for (int i = 0; i < DungeonSeed.TOTAL_SEEDS; i++) {
-			if (testSeed(Integer.toString(i), Options.floors)) {
+		while (chosenSeeds.size() < DungeonSeed.TOTAL_SEEDS) {
+            long i = rand.nextLong(DungeonSeed.TOTAL_SEEDS);
+            if (!chosenSeeds.contains(i)) {
+                chosenSeeds.add(i);
+				
+				if (testSeed(Long.toString(i), Options.floors)) {
 				System.out.printf("Found valid seed %s (%d)\n", DungeonSeed.convertToCode(Dungeon.seed), Dungeon.seed);
-				logSeedItems(Integer.toString(i), Options.floors);
+				logSeedItems(Long.toString(i), Options.floors);
 			}
-		}
+            }
+        }
+
 	}
 
 	private ArrayList<Heap> getMobDrops(Level l) {
