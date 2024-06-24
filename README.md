@@ -1,3 +1,13 @@
+> [!warning]
+> This repository is no longer mantained and has been discontinued.
+> 
+> At the time of writing, the following forks are the most active and maintained:
+> 
+> - [Ifritdiezel seed finder](https://github.com/ifritdiezel/is-seedfinder)
+> - [Elektrochecker seed finder](https://github.com/Elektrochecker/shpd-seed-finder)
+> 
+> Please refer to these repositories for the latest updates and improvements.
+
 # Shattered Pixel Dungeon seed finder
 
 Application to find seeds for Shattered Pixel Dungeon given constraints (e.g. wand of disintegration +2 and ring of evasion in the first 4 floors).
